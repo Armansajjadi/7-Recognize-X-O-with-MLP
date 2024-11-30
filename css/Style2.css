@@ -53,3 +53,9 @@
         transform: translate(-50%, -60%);
     }
 }
+
+@media (prefers-color-scheme: light){
+    #btnContainer{
+        background-color: white;
+    }
+}

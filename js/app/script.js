@@ -1,4 +1,4 @@
-let weights = []
+let weights = [];
 
 let alfa = 0.01;
 
@@ -48,7 +48,7 @@ window.addEventListener("load", () => {
 function test() {
     let counter = 0;
 
-    fetch("testjabbar.json")
+    fetch("testDataSets.json")
         .then(res => res.json())
         .then(array => {
             array.forEach(item => {
@@ -236,9 +236,14 @@ doneTrainBtn.addEventListener("click", () => {
             let zNetinput = 0
             let yNetinput = 0
 
+            let currentBatch = 0;
+
             while (training) {
 
                 dataForTrain.forEach(item => {
+
+
+    /****************************forwarding************************************************* */
 
                     item.data.forEach((num, index) => {
                         x[index] = num
@@ -263,6 +268,11 @@ doneTrainBtn.addEventListener("click", () => {
                             yNetinput += (z[j] * v[j][k])
                         }
                         y[k] = bipolarSigmoid(yNetinput);
+
+
+    /*/---------------------------------back propagation------------------------------------------------------------------------------------*/
+
+
                         let moshtag = moshtagbipolarSigmoid(yNetinput)
                         deltaKuchak[k] = ((item.y[k] - y[k]) * moshtag);
                         for (let j = 0; j < 19; j++) {
@@ -271,29 +281,36 @@ doneTrainBtn.addEventListener("click", () => {
                         deltaBiasHidden[k] = alfa * deltaKuchak[k]
                     }
 
-                    let deltaKuchakJ = Array(19).fill(0);
+                    let deltaKuchakHidden = Array(19).fill(0);
                     for (let j = 0; j < 19; j++) {
-                        deltaKuchakJ[j] = 0;
+                        deltaKuchakHidden[j] = 0;
                         for (let k = 0; k < 2; k++) {
                             D[j] = deltaKuchak[k] * v[j][k]; // Contribution from output neuron k
                             let temp = moshtagbipolarSigmoid(zNetInputs[j]); // Derivative of activation function
-                            deltaKuchakJ[j] += D[j] * temp; // Accumulate contribution
+                            deltaKuchakHidden[j] += D[j] * temp; // Accumulate contribution
                         }
                     }
 
 
                     for (let i = 0; i < 25; i++) {
                         for (let j = 0; j < 19; j++) {
-                            deltaW[i][j] = alfa * deltaKuchakJ[j] * x[i];
-                            deltaBias[i] = alfa * deltaKuchakJ[j];
+                            deltaW[i][j] = alfa * deltaKuchakHidden[j] * x[i];
+                            deltaBias[i] = alfa * deltaKuchakHidden[j];
                         }
                     }
+
+
+        /**********************************Updating********************************************************************/
 
 
                     for (let i = 0; i < 25; i++) {
                         for (let j = 0; j < 19; j++) {
                             weights[i][j] += deltaW[i][j];
                         }
+                    }
+
+                    for(let j=0; j<19;j++){
+                        b[j]+=deltaBias[j]
                     }
 
 
@@ -303,56 +320,63 @@ doneTrainBtn.addEventListener("click", () => {
                         }
                     }
 
+                    for(let k=0; k<2;k++){
+                        biasHidden[k]+=deltaBiasHidden[k]
+                    }
+
                 })
 
-                epoch++
+
+
+                epoch++;
                 console.log(epoch);
-
-                let batchSize = 5;
-                let currentBatch = 0;
-
-                let startIndex = currentBatch * batchSize;
-                let endIndex = Math.min(startIndex + batchSize, dataForValidation.length);
-
-                let allCorrect = true;
-
-                for (let i = startIndex; i < endIndex; i++) {
-                    let item = dataForValidation[i];
-                    item.data.forEach((num, index) => {
-                        x[index] = num;
-                    });
-
-                    for (let j = 0; j < 19; j++) {
-                        zNetinput = b[j];
-                        for (let i = 0; i < 25; i++) {
-                            zNetinput += x[i] * weights[i][j];
-                        }
-                        z[j] = bipolarSigmoid(zNetinput);
-                    }
-
-                    for (let k = 0; k < 2; k++) {
-                        yNetinput = biasHidden[k];
+                if(epoch%5 == 0){
+                    let batchSize = 6;
+            
+                    let startIndex = currentBatch * batchSize;
+                    let endIndex = Math.min(startIndex + batchSize, dataForValidation.length);
+                
+                    let allCorrect = true;
+                
+                    for (let i = startIndex; i < endIndex; i++) {
+                        let item = dataForValidation[i];
+                        item.data.forEach((num, index) => {
+                            x[index] = num;
+                        });
+                
                         for (let j = 0; j < 19; j++) {
-                            yNetinput += z[j] * v[j][k];
+                            zNetinput = b[j];
+                            for (let i = 0; i < 25; i++) {
+                                zNetinput += x[i] * weights[i][j];
+                            }
+                            z[j] = bipolarSigmoid(zNetinput);
                         }
-                        y[k] = bipolarSigmoid(yNetinput);
-
-                        javab[k] = y[k] > 0 ? 1 : -1;
+                
+                        for (let k = 0; k < 2; k++) {
+                            yNetinput = biasHidden[k];
+                            for (let j = 0; j < 19; j++) {
+                                yNetinput += z[j] * v[j][k];
+                            }
+                            y[k] = bipolarSigmoid(yNetinput);
+                
+                            javab[k] = y[k] > 0 ? 1 : -1;
+                        }
+                
+                        if (!isArraysEqual(item.y, javab)) {
+                            allCorrect = false;
+                            break;
+                        }
                     }
-
-                    if (!isArraysEqual(item.y, javab)) {
-                        allCorrect = false;
-                        break;
+                
+                    if (allCorrect) {
+                        training = false; 
+                    } else {
+                        currentBatch++; 
+                        if (currentBatch * batchSize >= dataForValidation.length) {
+                            currentBatch = 0;
+                        }
                     }
-                }
-
-                if (allCorrect) {
-                    training = false;
-                } else {
-                    currentBatch++;
-                    if (currentBatch * batchSize >= dataForValidation.length) {
-                        currentBatch = 0;
-                    }
+    
                 }
                 if (epoch ==5000) {
                     break
@@ -400,6 +424,7 @@ doneTrainBtn.addEventListener("click", () => {
 function bipolarSigmoid(x) {
     return (2 / (1 + Math.exp(-x))) - 1;
 }
+
 function moshtagbipolarSigmoid(x) {
     const sigmoidValue = bipolarSigmoid(x);
     return ((1 + sigmoidValue) * (1 - sigmoidValue)) / 2;
